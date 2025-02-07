@@ -7,19 +7,8 @@ type ItemPredicate<T> = (value: Item<T>) => boolean
 export default class Collection<T> {
   items: Map<T, Item<T>> = new Map()
 
-  subsetsByPredicate: Map<ItemPredicate<T>, ObservableSet<T>> = new Map()
+  subsetsByPredicate: Map<InputPredicate<T>, ObservableSet<T>> = new Map()
   predicatesByInput: Map<InputPredicate<T>, ItemPredicate<T>> = new Map()
-
-  private _addFilter(itemPredicate: ItemPredicate<T>) {
-    const set = new ObservableSet<T>()
-    this.subsetsByPredicate.set(itemPredicate, set)
-
-    this.items.forEach((item) => {
-      item.addFilterProp(set, itemPredicate)
-    })
-
-    return set
-  }
 
   addFilter(
     predicate: InputPredicate<T>,
@@ -47,8 +36,16 @@ export default class Collection<T> {
     // associate it with the InputPredicate
     this.predicatesByInput.set(predicate, _predicate)
 
-    // then run it through the collection
-    return this._addFilter(_predicate)
+    // create a result set
+    const set = new ObservableSet<T>()
+    this.subsetsByPredicate.set(predicate, set)
+
+    // tell each item to track this predicate
+    this.items.forEach((item) => {
+      item.addFilterProp(set, _predicate)
+    })
+
+    return set
   }
 
   add(item: T) {
@@ -57,7 +54,8 @@ export default class Collection<T> {
       this.items.set(_item.item, _item)
 
       this.subsetsByPredicate.forEach((set, predicate) => {
-        _item.addFilterProp(set, predicate)
+        const _predicate = this.predicatesByInput.get(predicate)!
+        _item.addFilterProp(set, _predicate)
       })
     })
   }
@@ -71,15 +69,10 @@ export default class Collection<T> {
     })
   }
 
-  filter(filter: InputPredicate<T>) {
-    const predicate = this.predicatesByInput.get(filter)
-    if (!predicate) throw Error(`Couldn't find InputPredicate`)
+  filter(predicate: InputPredicate<T>, dependencies: InputPredicate<T>[] = []) {
+    const set = this.subsetsByPredicate.get(predicate)
+    if (set) return set
 
-    const filterSet = this.subsetsByPredicate.get(predicate)
-    if (!filterSet) {
-      throw Error(`Couldn't find filterSet with name ${filter}`)
-    }
-
-    return filterSet
+    return this.addFilter(predicate, dependencies)
   }
 }

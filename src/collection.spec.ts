@@ -148,3 +148,17 @@ test("Collection works with filters that depend on other collections", () => {
   expect(updates).toBe(2)
   expect(referenced.size).toBe(3)
 })
+
+test("Collection's filter method returns existing result sets if predicate is already tracked'", () => {
+  const collection = new Collection<Dummy>()
+
+  const isEven = (item: Dummy) => item.value % 2 === 0
+  const even = collection.filter(isEven)
+
+  expect(even.size).toBe(0)
+  collection.add(new Dummy(2))
+  collection.add(new Dummy(4))
+  collection.add(new Dummy(6))
+})
+
+// TODO figure out what happens if someone yeets in a predicate twice, but with different dependencies
