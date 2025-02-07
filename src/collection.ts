@@ -1,4 +1,4 @@
-import { ObservableSet } from "mobx"
+import { ObservableSet, transaction } from "mobx"
 import Item from "./item.js"
 
 type AtomicPredicate<T> = (value: T) => boolean
@@ -8,56 +8,47 @@ type InputPredicate<T> = AtomicPredicate<T> | CompositePredicate<T>
 type ItemPredicate<T> = (value: Item<T>) => boolean
 
 export default class Collection<T> {
-  count = 0
-
   items: Map<T, Item<T>> = new Map()
 
-  predicateResults: Map<ItemPredicate<T>, ObservableSet<T>> = new Map()
-  predicateNames: Map<ItemPredicate<T>, string> = new Map()
+  subsetsByPredicate: Map<ItemPredicate<T>, ObservableSet<T>> = new Map()
   predicatesByInput: Map<InputPredicate<T>, ItemPredicate<T>> = new Map()
 
-  private addFilter(predicate: ItemPredicate<T>) {
-    this.count++
-    const name = this.count.toString()
-
+  private addFilter(itemPredicate: ItemPredicate<T>) {
     const set = new ObservableSet<T>()
-    this.predicateResults.set(predicate, set)
-    this.predicateNames.set(predicate, name)
+    this.subsetsByPredicate.set(itemPredicate, set)
 
     this.items.forEach((item) => {
-      item.addFilterProp(this, name, predicate)
+      item.addFilterProp(set, itemPredicate)
     })
 
     return set
   }
 
-  addItemFilter(predicate: AtomicPredicate<T>) {
-    const _predicate = (item: Item<T>) => predicate(item.item)
-    this.predicatesByInput.set(predicate, _predicate)
+  addItemFilter(inputPredicate: AtomicPredicate<T>) {
+    const itemPredicate = (item: Item<T>) => inputPredicate(item.item)
+    this.predicatesByInput.set(inputPredicate, itemPredicate)
 
-    return this.addFilter(_predicate)
+    return this.addFilter(itemPredicate)
   }
 
   addCompositeFilter(
     combiner: CompositePredicate<T>,
     predicates: InputPredicate<T>[]
   ) {
-    const filterNames = predicates.map((predicate) => {
+    const itemPredicates = predicates.map((predicate) => {
       const itemPredicate = this.predicatesByInput.get(predicate)
       if (itemPredicate === undefined) {
         throw new Error("Couldn't find ItemPredicate for InputPredicate")
       }
 
-      const filterName = this.predicateNames.get(itemPredicate)
-      if (filterName === undefined) {
-        throw new Error("Couldn't find filterName for ItemPredicate")
-      }
-
-      return filterName
+      return itemPredicate
     })
 
     const predicate = (item: Item<T>) => {
-      const filterValues = filterNames.map((fname) => item[`is${fname}`])
+      const filterValues = itemPredicates.map((itemPredicate) =>
+        item.props.get(itemPredicate)?.get()
+      ) as boolean[]
+
       return combiner(filterValues)
     }
 
@@ -67,21 +58,22 @@ export default class Collection<T> {
   }
 
   add(item: T) {
-    const _item = new Item(item)
-    this.items.set(_item.item, _item)
+    transaction(() => {
+      const _item = new Item(item)
+      this.items.set(_item.item, _item)
 
-    this.predicateResults.forEach((set, predicate) => {
-      const filterName = this.predicateNames.get(predicate)
-      if (!filterName) throw Error("Couldn't find filterName")
-
-      _item.addFilterProp(this, filterName, predicate)
+      this.subsetsByPredicate.forEach((set, predicate) => {
+        _item.addFilterProp(set, predicate)
+      })
     })
   }
 
   remove(item: T) {
-    this.items.delete(item)
-    this.predicateResults.forEach((set, predicate) => {
-      set.delete(item)
+    transaction(() => {
+      this.items.delete(item)
+      this.subsetsByPredicate.forEach((set, predicate) => {
+        set.delete(item)
+      })
     })
   }
 
@@ -89,7 +81,7 @@ export default class Collection<T> {
     const predicate = this.predicatesByInput.get(filter)
     if (!predicate) throw Error(`Couldn't find InputPredicate`)
 
-    const filterSet = this.predicateResults.get(predicate)
+    const filterSet = this.subsetsByPredicate.get(predicate)
     if (!filterSet) {
       throw Error(`Couldn't find filterSet with name ${filter}`)
     }

@@ -1,15 +1,24 @@
-import { action, autorun, computed, makeAutoObservable } from "mobx"
-import Collection from "./collection.js"
+import {
+  action,
+  autorun,
+  computed,
+  IComputedValue,
+  makeAutoObservable,
+  ObservableMap,
+  ObservableSet,
+} from "mobx"
 
 type ItemPredicate<T> = (value: Item<T>) => boolean
 
 export default class Item<T> {
-  _item: T;
-  [key: `is${string}`]: boolean
+  _item: T
+  props: Map<ItemPredicate<T>, IComputedValue<boolean>> = new Map()
 
   constructor(item: T) {
     this._item = item
-    makeAutoObservable(this)
+    makeAutoObservable(this, {
+      update: action,
+    })
   }
 
   set item(item) {
@@ -20,34 +29,20 @@ export default class Item<T> {
     return this._item
   }
 
-  addFilterProp(
-    collection: Collection<T>,
-    filterName: string,
-    predicate: ItemPredicate<T>
-  ) {
-    const computedProp = computed(() => predicate(this))
-
-    Object.defineProperty(this, `is${filterName}`, {
-      get: function () {
-        return computedProp.get()
-      },
-      configurable: true,
-    })
+  addFilterProp(set: ObservableSet<T>, predicate: ItemPredicate<T>) {
+    const compute = computed(() => predicate(this))
+    this.props.set(predicate, compute)
 
     autorun(() => {
-      const matches = this[`is${filterName}`]
-      const filterSet = collection.predicateResults.get(predicate)
-      if (!filterSet) {
-        throw Error(`Couldn't find filterSet with name ${filterName}`)
-      }
-
-      action(`update${filterName}Set`, () => {
-        if (matches) {
-          filterSet.add(this.item)
-        } else {
-          filterSet.delete(this.item)
-        }
-      })()
+      this.update(set, compute.get())
     })
+  }
+
+  update(set: ObservableSet<T>, compute: boolean) {
+    if (compute) {
+      set.add(this.item)
+    } else {
+      set.delete(this.item)
+    }
   }
 }
