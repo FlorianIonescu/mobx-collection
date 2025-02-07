@@ -1,6 +1,6 @@
 import { expect, test } from "vitest"
 import Collection from "./collection"
-import { autorun, makeAutoObservable, transaction } from "mobx"
+import { autorun, makeAutoObservable } from "mobx"
 
 class Dummy {
   value: number
@@ -19,10 +19,10 @@ test("Collection updates subsets based on filters", () => {
 
   const isEven = (item: Dummy) => item.value % 2 === 0
   const isBigger = (item: Dummy) => item.value > 5
-  const even = collection.addItemFilter(isEven)
-  const bigger = collection.addItemFilter(isBigger)
-  const both = collection.addCompositeFilter(
-    ([even, bigger]) => even && bigger,
+  const even = collection.addFilter(isEven)
+  const bigger = collection.addFilter(isBigger)
+  const both = collection.addFilter(
+    (_item, [even, bigger]) => even && bigger,
     [isEven, isBigger]
   )
 
@@ -89,8 +89,8 @@ test("Collection works for simple cases", () => {
 
   const isEven = (item: Dummy) => item.value % 2 === 0
   const isBigger = (item: Dummy) => item.value > 5
-  const even = collection.addItemFilter(isEven)
-  const bigger = collection.addItemFilter(isBigger)
+  const even = collection.addFilter(isEven)
+  const bigger = collection.addFilter(isBigger)
 
   const a = new Dummy(2)
   collection.add(a)
@@ -122,12 +122,12 @@ test("Collection works with filters that depend on other collections", () => {
   const collection = new Collection<Dummy>()
 
   const isEven = (item: Dummy) => item.value % 2 === 0
-  const even = collection.addItemFilter(isEven)
+  const even = collection.addFilter(isEven)
 
   const moreThanTwoEvens = (item: Dummy) => {
     return even.size > 2
   }
-  const referenced = collection.addItemFilter(moreThanTwoEvens)
+  const referenced = collection.addFilter(moreThanTwoEvens)
 
   let updates = 0
 

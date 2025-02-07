@@ -1,10 +1,7 @@
 import { ObservableSet, transaction } from "mobx"
 import Item from "./item.js"
 
-type AtomicPredicate<T> = (value: T) => boolean
-type CompositePredicate<T> = (props: boolean[]) => boolean
-type InputPredicate<T> = AtomicPredicate<T> | CompositePredicate<T>
-
+type InputPredicate<T> = (value: T, props: boolean[]) => boolean
 type ItemPredicate<T> = (value: Item<T>) => boolean
 
 export default class Collection<T> {
@@ -13,7 +10,7 @@ export default class Collection<T> {
   subsetsByPredicate: Map<ItemPredicate<T>, ObservableSet<T>> = new Map()
   predicatesByInput: Map<InputPredicate<T>, ItemPredicate<T>> = new Map()
 
-  private addFilter(itemPredicate: ItemPredicate<T>) {
+  private _addFilter(itemPredicate: ItemPredicate<T>) {
     const set = new ObservableSet<T>()
     this.subsetsByPredicate.set(itemPredicate, set)
 
@@ -24,18 +21,12 @@ export default class Collection<T> {
     return set
   }
 
-  addItemFilter(inputPredicate: AtomicPredicate<T>) {
-    const itemPredicate = (item: Item<T>) => inputPredicate(item.item)
-    this.predicatesByInput.set(inputPredicate, itemPredicate)
-
-    return this.addFilter(itemPredicate)
-  }
-
-  addCompositeFilter(
-    combiner: CompositePredicate<T>,
-    predicates: InputPredicate<T>[]
+  addFilter(
+    predicate: InputPredicate<T>,
+    dependencies: InputPredicate<T>[] = []
   ) {
-    const itemPredicates = predicates.map((predicate) => {
+    // get the ItemPredicates whose values this predicate needs
+    const itemPredicates = dependencies.map((predicate) => {
       const itemPredicate = this.predicatesByInput.get(predicate)
       if (itemPredicate === undefined) {
         throw new Error("Couldn't find ItemPredicate for InputPredicate")
@@ -44,17 +35,20 @@ export default class Collection<T> {
       return itemPredicate
     })
 
-    const predicate = (item: Item<T>) => {
+    // make an ItemPredicate out of this
+    const _predicate = (item: Item<T>) => {
       const filterValues = itemPredicates.map((itemPredicate) =>
         item.props.get(itemPredicate)?.get()
       ) as boolean[]
 
-      return combiner(filterValues)
+      return predicate(item._item, filterValues)
     }
 
-    this.predicatesByInput.set(combiner, predicate)
+    // associate it with the InputPredicate
+    this.predicatesByInput.set(predicate, _predicate)
 
-    return this.addFilter(predicate)
+    // then run it through the collection
+    return this._addFilter(_predicate)
   }
 
   add(item: T) {
