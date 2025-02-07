@@ -2,22 +2,32 @@ import { ObservableSet, transaction } from "mobx"
 import Item from "./item.js"
 
 type InputPredicate<T> = (value: T, props: boolean[]) => boolean
-type Registration<T> = {
-  set: ObservableSet<T>
-  predicate: (value: Item<T>) => boolean
+
+type Filter<T> = {
+  predicate: InputPredicate<T>
+  dependencies: Filter<T>[]
 }
+type Registration<T> = {
+  predicate: (value: Item<T>) => boolean
+  set: ObservableSet<T>
+}
+
+type FilterInput<T> =
+  | {
+      predicate: InputPredicate<T>
+      dependencies: FilterInput<T>[]
+    }
+  | InputPredicate<T>
 
 export default class Collection<T> {
   items: Map<T, Item<T>> = new Map()
-  registrations: Map<InputPredicate<T>, Registration<T>> = new Map()
+  registrations: Map<Filter<T>, Registration<T>> = new Map()
+  atomicFilters: Map<Function, Filter<T>> = new Map()
 
-  addFilter(
-    predicate: InputPredicate<T>,
-    dependencies: InputPredicate<T>[] = []
-  ) {
+  private _addFilter(filter: Filter<T>) {
     // get the Registrations whose values this predicate needs
-    const registrations = dependencies.map((predicate) => {
-      const registration = this.registrations.get(predicate)
+    const registrations = filter.dependencies.map((_filter) => {
+      const registration = this.registrations.get(_filter)
       if (registration === undefined) {
         throw new Error("Couldn't find Registration for InputPredicate")
       }
@@ -31,7 +41,7 @@ export default class Collection<T> {
         item.props.get(registration.predicate)?.get()
       ) as boolean[]
 
-      return predicate(item._item, filterValues)
+      return filter.predicate(item._item, filterValues)
     }
 
     // register the new predicate and its result set
@@ -39,7 +49,7 @@ export default class Collection<T> {
       set: new ObservableSet<T>(),
       predicate: _predicate,
     }
-    this.registrations.set(predicate, registration)
+    this.registrations.set(filter, registration)
 
     // tell each item to track this predicate
     this.items.forEach((item) => {
@@ -69,10 +79,58 @@ export default class Collection<T> {
     })
   }
 
-  filter(predicate: InputPredicate<T>, dependencies: InputPredicate<T>[] = []) {
-    const registration = this.registrations.get(predicate)
+  private _filterOrPredicateToFilter(
+    filterOrPredicate: FilterInput<T>
+  ): Filter<T> {
+    let filter
+
+    // just a simple predicate thrown in, no dependencies
+    if (filterOrPredicate instanceof Function) {
+      filter = this.atomicFilters.get(filterOrPredicate)
+
+      // make a new filter if it doesn't exist
+      if (!filter) {
+        filter = {
+          predicate: filterOrPredicate,
+          dependencies: [],
+        }
+      }
+    } else {
+      filter = {
+        predicate: filterOrPredicate.predicate,
+        dependencies: filterOrPredicate.dependencies.map((d) =>
+          this._filterOrPredicateToFilter(d)
+        ),
+      }
+    }
+
+    return filter
+  }
+
+  filter(filterOrPredicate: FilterInput<T>): ObservableSet<T> {
+    const filter = this._filterOrPredicateToFilter(filterOrPredicate)
+
+    // get the registration and return its set if it exists
+    const registration = this.registrations.get(filter)
     if (registration) return registration.set
 
-    return this.addFilter(predicate, dependencies)
+    // this new filter doesn't exist yet
+
+    // check if all dependencies are fine
+    for (const dependency of filter.dependencies) {
+      if (!this.registrations.get(dependency)) {
+        throw Error(
+          "Attempted to add a filter with a dependency that doesn't exist"
+        )
+      }
+    }
+
+    // register predicate function for future filter retrieval
+    if (filterOrPredicate instanceof Function) {
+      this.atomicFilters.set(filterOrPredicate, filter)
+    }
+
+    // hook the filter into the system
+    return this._addFilter(filter)
   }
 }

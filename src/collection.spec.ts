@@ -19,12 +19,12 @@ test("Collection updates subsets based on filters", () => {
 
   const isEven = (item: Dummy) => item.value % 2 === 0
   const isBigger = (item: Dummy) => item.value > 5
-  const even = collection.addFilter(isEven)
-  const bigger = collection.addFilter(isBigger)
-  const both = collection.addFilter(
-    (_item, [even, bigger]) => even && bigger,
-    [isEven, isBigger]
-  )
+  const even = collection.filter(isEven)
+  const bigger = collection.filter(isBigger)
+  const both = collection.filter({
+    predicate: (_item, [even, bigger]) => even && bigger,
+    dependencies: [isEven, isBigger],
+  })
 
   let updates = 0
 
@@ -89,8 +89,8 @@ test("Collection works for simple cases", () => {
 
   const isEven = (item: Dummy) => item.value % 2 === 0
   const isBigger = (item: Dummy) => item.value > 5
-  const even = collection.addFilter(isEven)
-  const bigger = collection.addFilter(isBigger)
+  const even = collection.filter(isEven)
+  const bigger = collection.filter(isBigger)
 
   const a = new Dummy(2)
   collection.add(a)
@@ -122,12 +122,12 @@ test("Collection works with filters that depend on other collections", () => {
   const collection = new Collection<Dummy>()
 
   const isEven = (item: Dummy) => item.value % 2 === 0
-  const even = collection.addFilter(isEven)
+  const even = collection.filter(isEven)
 
   const moreThanTwoEvens = (item: Dummy) => {
     return even.size > 2
   }
-  const referenced = collection.addFilter(moreThanTwoEvens)
+  const referenced = collection.filter(moreThanTwoEvens)
 
   let updates = 0
 
@@ -161,4 +161,16 @@ test("Collection's filter method returns existing result sets if predicate is al
   collection.add(new Dummy(6))
 })
 
-// TODO figure out what happens if someone yeets in a predicate twice, but with different dependencies
+test("Collection's filter throws if a filter is added with a missing dependency'", () => {
+  const collection = new Collection<Dummy>()
+
+  const isBigger = (item: Dummy) => item.value > 5
+
+  const isEven = (item: Dummy) => item.value % 2 === 0
+  expect(() => {
+    collection.filter({
+      predicate: isEven,
+      dependencies: [isBigger],
+    })
+  }).toThrowError()
+})
