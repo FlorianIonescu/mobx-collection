@@ -1,6 +1,6 @@
 import { expect, test } from "vitest"
 import Collection from "./collection"
-import { autorun, makeAutoObservable } from "mobx"
+import { autorun, makeAutoObservable, ObservableSet } from "mobx"
 
 class Dummy {
   value: number
@@ -23,7 +23,7 @@ test("Collection updates subsets based on filters", () => {
   const bigger = collection.filter(isBigger)
   const both = collection.filter({
     predicate: (_item, [even, bigger]) => even && bigger,
-    dependencies: [isEven, isBigger],
+    dependencies: [even, bigger],
   })
 
   let updates = 0
@@ -164,13 +164,48 @@ test("Collection's filter method returns existing result sets if predicate is al
 test("Collection's filter throws if a filter is added with a missing dependency'", () => {
   const collection = new Collection<Dummy>()
 
-  const isBigger = (item: Dummy) => item.value > 5
-
   const isEven = (item: Dummy) => item.value % 2 === 0
   expect(() => {
     collection.filter({
       predicate: isEven,
-      dependencies: [isBigger],
+      dependencies: [new ObservableSet()],
     })
   }).toThrowError()
+})
+
+test("Collection returns the same set for the same filter", () => {
+  const collection = new Collection<Dummy>()
+
+  const isEven = (item: Dummy) => item.value % 2 === 0
+  expect(collection.filter(isEven)).toBe(collection.filter(isEven))
+
+  const a = {
+    predicate: isEven,
+    dependencies: [],
+  }
+  const b = {
+    predicate: isEven,
+    dependencies: [],
+  }
+  expect(collection.filter(a)).toBe(collection.filter(b))
+})
+
+test("Collection returns a new set if predicate is same but dependencies different", () => {
+  const collection = new Collection<Dummy>()
+
+  const bigger = collection.filter((item) => item.value > 5)
+  const smaller = collection.filter((item) => item.value < 5)
+
+  const isEven = (item: Dummy) => item.value % 2 === 0
+  expect(collection.filter(isEven)).toBe(collection.filter(isEven))
+
+  const a = {
+    predicate: isEven,
+    dependencies: [smaller],
+  }
+  const b = {
+    predicate: isEven,
+    dependencies: [bigger],
+  }
+  expect(collection.filter(a)).not.toBe(collection.filter(b))
 })

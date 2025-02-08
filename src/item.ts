@@ -11,7 +11,7 @@ type ItemPredicate<T> = (value: Item<T>) => boolean
 
 export default class Item<T> {
   _item: T
-  props: Map<ItemPredicate<T>, IComputedValue<boolean>> = new Map()
+  props: Map<ObservableSet<T>, IComputedValue<boolean>> = new Map()
 
   constructor(item: T) {
     this._item = item
@@ -30,7 +30,7 @@ export default class Item<T> {
 
   addFilterProp(set: ObservableSet<T>, predicate: ItemPredicate<T>) {
     const compute = computed(() => predicate(this))
-    this.props.set(predicate, compute)
+    this.props.set(set, compute)
 
     autorun(() => {
       this.update(set, compute.get())
