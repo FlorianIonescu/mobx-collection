@@ -1,6 +1,12 @@
+import { makeAutoObservable } from "mobx"
+
 export default class BidirectionalMap<A, B> {
-  private _forward = new Map<A, B>()
-  private _reverse = new Map<B, A>()
+  _forward = new Map<A, B>()
+  _reverse = new Map<B, A>()
+
+  constructor() {
+    makeAutoObservable(this)
+  }
 
   set(A: A, B: B): void {
     this._forward.set(A, B)
@@ -15,12 +21,16 @@ export default class BidirectionalMap<A, B> {
     return [...this._forward.values()]
   }
 
+  entries() {
+    return [...this._forward.entries()]
+  }
+
   forward(A: A): B | undefined {
-    return this._forward.get(A)
+    return this._forward.get(A) as B | undefined
   }
 
   reverse(B: B): A | undefined {
-    return this._reverse.get(B)
+    return this._reverse.get(B) as A | undefined
   }
 
   deleteByA(A: A): void {

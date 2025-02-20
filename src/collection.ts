@@ -1,122 +1,51 @@
-import { ObservableSet, transaction } from "mobx"
 import Item from "./item.js"
 import BidirectionalMap from "./utils/bidirectional-map.js"
+import Selector from "./selector/selector.js"
+import { ObservableMap, ObservableSet } from "mobx"
+import SelectionCache from "./types/selection-cache.js"
 
-type InputPredicate<T> = (value: T, props: boolean[]) => boolean
-
-type Filter<T> = {
-  predicate: InputPredicate<T>
-  dependencies: ObservableSet<T>[]
-}
-
-type FilterInput<T> =
-  | {
-      predicate: InputPredicate<T>
-      dependencies: ObservableSet<T>[]
-    }
-  | InputPredicate<T>
+type CollectionRegistrations<T, G> = BidirectionalMap<
+  Selector<T, G>,
+  SelectionCache<T, G>
+>
 
 export default class Collection<T> {
-  items: Map<T, Item<T>> = new Map()
-  registrations: BidirectionalMap<Filter<T>, ObservableSet<T>> =
-    new BidirectionalMap()
+  items: ObservableMap<T, Item<T>> = new ObservableMap()
+  registrations: CollectionRegistrations<T, unknown> = new BidirectionalMap()
 
-  private makeItemPredicate(filter: Filter<T>): (item: Item<T>) => boolean {
-    return (item: Item<T>) => {
-      const filterValues = filter.dependencies.map((set) =>
-        item.props.get(set)?.get()
-      ) as boolean[]
-
-      return filter.predicate(item._item, filterValues)
+  register<G>(selector: Selector<T, G>) {
+    const existing = this.registrations.forward(selector)
+    if (existing) {
+      throw new Error("Tried to register an already registered Selector")
     }
-  }
 
-  private _addFilter(filter: Filter<T>) {
-    // register the new predicate and its result set
-    const set = new ObservableSet()
-    this.registrations.set(filter, set)
+    const cache = new BidirectionalMap<G, ObservableSet<T>>()
+    this.registrations.set(selector, cache)
 
-    const _predicate = this.makeItemPredicate(filter)
-
-    // tell each item to track this predicate
     this.items.forEach((item) => {
-      item.addFilterProp(set, _predicate)
+      item.addProp(selector, cache)
     })
-
-    return set
   }
 
   add(item: T) {
-    transaction(() => {
-      const _item = new Item(item)
-      this.items.set(_item.item, _item)
+    const _item = new Item(item)
+    this.items.set(_item.item, _item)
 
-      this.registrations.b().forEach((set: ObservableSet<T>) => {
-        const filter = this.registrations.reverse(set) as Filter<T>
-        const predicate = this.makeItemPredicate(filter)
-        _item.addFilterProp(set, predicate)
-      })
+    this.registrations.entries().forEach(([selector, cache]) => {
+      _item.addProp(selector, cache)
     })
   }
 
-  remove(item: T) {
-    transaction(() => {
-      this.items.delete(item)
-      this.registrations.b().forEach((set) => {
-        set.delete(item)
-      })
-    })
-  }
+  filter<G>(selector: Selector<T, G>, group: G): ObservableSet<T> {
+    const cache = this.registrations.forward(selector)
+    if (!cache) throw new Error("Tried to filter over an unregistered Selector")
 
-  private _filterOrPredicateToFilter(
-    filterOrPredicate: FilterInput<T>
-  ): Filter<T> {
-    if (filterOrPredicate instanceof Function) {
-      // just a simple predicate thrown in, no dependencies
-      return {
-        predicate: filterOrPredicate,
-        dependencies: [],
-      }
-    } else {
-      return filterOrPredicate
-    }
-  }
+    const set = cache.forward(group)
+    if (set) return set
 
-  private _findExistingFilter(filter: Filter<T>): Filter<T> | undefined {
-    return this.registrations.a().find((_filter) => {
-      if (filter.predicate !== _filter.predicate) return false
-      if (filter.dependencies.length !== _filter.dependencies.length)
-        return false
-      for (const index in filter.dependencies) {
-        if (filter.dependencies[index] !== _filter.dependencies[index])
-          return false
-      }
+    const _set = new ObservableSet()
+    cache.set(group, _set)
 
-      return true
-    })
-  }
-
-  filter(filterOrPredicate: FilterInput<T>): ObservableSet<T> {
-    const filter = this._filterOrPredicateToFilter(filterOrPredicate)
-
-    const existing = this._findExistingFilter(filter)
-    if (existing) {
-      // get the registration and return its set
-      return this.registrations.forward(existing) as ObservableSet<T>
-    }
-
-    // this new filter doesn't exist yet
-
-    // check if all dependencies are fine
-    for (const dependency of filter.dependencies) {
-      if (!this.registrations.reverse(dependency)) {
-        throw Error(
-          "Attempted to add a filter with a dependency that doesn't exist"
-        )
-      }
-    }
-
-    // hook the filter into the system
-    return this._addFilter(filter)
+    return _set
   }
 }

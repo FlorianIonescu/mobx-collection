@@ -1,6 +1,9 @@
 import { makeAutoObservable, ObservableSet } from "mobx"
 import { expect, test } from "vitest"
-import Item from "./item"
+import Item from "./item.js"
+import BidirectionalMap from "./utils/bidirectional-map.js"
+import Selector from "./selector/selector.js"
+import SelectionCache from "./types/selection-cache.js"
 
 class Dummy {
   value: number
@@ -15,24 +18,37 @@ class Dummy {
   }
 }
 
+class IsEvenSelector extends Selector<Dummy, boolean> {
+  select(item: Dummy): boolean {
+    return item.value % 2 === 0
+  }
+}
+
 test("Item reacts to _item changes and updates its props", () => {
   const dummy = new Dummy(1)
   const item = new Item(dummy)
 
-  const isEven = (item: Item<Dummy>) => {
-    return item._item.value % 2 === 0
-  }
-  const set: ObservableSet<Dummy> = new ObservableSet()
+  const selector = new IsEvenSelector()
+  const cache: SelectionCache<Dummy, boolean> = new BidirectionalMap<
+    boolean,
+    ObservableSet<Dummy>
+  >()
+  item.addProp(selector, cache)
 
-  item.addFilterProp(set, isEven)
+  const a = cache.forward(true)
+  expect(a).not.toBeDefined()
 
-  expect(set.size).toBe(0)
   dummy.set(2)
-  expect(set.size).toBe(1)
-  dummy.set(3)
-  expect(set.size).toBe(0)
-  dummy.set(4)
-  expect(set.size).toBe(1)
-  dummy.set(5)
-  expect(set.size).toBe(0)
+
+  const b = cache.forward(true)
+  expect(b).toBeDefined()
+  expect(b.size).toBe(1)
+
+  dummy.set(1)
+
+  const c = cache.forward(true)
+  expect(c).toBeDefined()
+  expect(c.size).toBe(0)
+
+  expect(b).toBe(c)
 })

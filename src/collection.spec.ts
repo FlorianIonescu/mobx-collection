@@ -1,9 +1,11 @@
 import { expect, test } from "vitest"
-import Collection from "./collection"
-import { autorun, makeAutoObservable, ObservableSet } from "mobx"
+import Collection from "./collection.js"
+import { makeAutoObservable, ObservableSet } from "mobx"
+import Selector from "./selector/selector.js"
 
 class Dummy {
   value: number
+
   constructor(value: number) {
     this.value = value
     makeAutoObservable(this)
@@ -14,198 +16,54 @@ class Dummy {
   }
 }
 
-test("Collection updates subsets based on filters", () => {
-  const collection = new Collection<Dummy>()
-
-  const isEven = (item: Dummy) => item.value % 2 === 0
-  const isBigger = (item: Dummy) => item.value > 5
-  const even = collection.filter(isEven)
-  const bigger = collection.filter(isBigger)
-  const both = collection.filter({
-    predicate: (_item, [even, bigger]) => even && bigger,
-    dependencies: [even, bigger],
-  })
-
-  let updates = 0
-
-  autorun(() => {
-    ;[...even]
-    updates++
-  })
-
-  autorun(() => {
-    ;[...bigger]
-    updates++
-  })
-
-  autorun(() => {
-    ;[...both]
-    updates++
-  })
-
-  expect(updates).toBe(3)
-
-  const a = new Dummy(2)
-
-  collection.add(a)
-  expect(even.size).toBe(1)
-  expect(bigger.size).toBe(0)
-  expect(both.size).toBe(0)
-  expect(updates).toBe(4)
-
-  collection.add(new Dummy(7))
-  expect(even.size).toBe(1)
-  expect(bigger.size).toBe(1)
-  expect(both.size).toBe(0)
-  expect(updates).toBe(5)
-
-  collection.add(new Dummy(4))
-  expect(even.size).toBe(2)
-  expect(bigger.size).toBe(1)
-  expect(both.size).toBe(0)
-  expect(updates).toBe(6)
-
-  collection.add(new Dummy(8))
-  expect(even.size).toBe(3)
-  expect(bigger.size).toBe(2)
-  expect(both.size).toBe(1)
-  expect(updates).toBe(9)
-
-  a.set(6)
-  expect(even.size).toBe(3)
-  expect(bigger.size).toBe(3)
-  expect(both.size).toBe(2)
-  expect(updates).toBe(11)
-
-  collection.remove(a)
-  expect(even.size).toBe(2)
-  expect(bigger.size).toBe(2)
-  expect(both.size).toBe(1)
-  expect(updates).toBe(14)
-})
-
-test("Collection works for simple cases", () => {
-  const collection = new Collection<Dummy>()
-
-  const isEven = (item: Dummy) => item.value % 2 === 0
-  const isBigger = (item: Dummy) => item.value > 5
-  const even = collection.filter(isEven)
-  const bigger = collection.filter(isBigger)
-
-  const a = new Dummy(2)
-  collection.add(a)
-  expect(even.size).toBe(1)
-  expect(bigger.size).toBe(0)
-
-  collection.add(new Dummy(7))
-  expect(even.size).toBe(1)
-  expect(bigger.size).toBe(1)
-
-  collection.add(new Dummy(4))
-  expect(even.size).toBe(2)
-  expect(bigger.size).toBe(1)
-
-  collection.add(new Dummy(8))
-  expect(even.size).toBe(3)
-  expect(bigger.size).toBe(2)
-
-  a.set(6)
-  expect(even.size).toBe(3)
-  expect(bigger.size).toBe(3)
-
-  collection.remove(a)
-  expect(even.size).toBe(2)
-  expect(bigger.size).toBe(2)
-})
-
-test("Collection works with filters that depend on other collections", () => {
-  const collection = new Collection<Dummy>()
-
-  const isEven = (item: Dummy) => item.value % 2 === 0
-  const even = collection.filter(isEven)
-
-  const moreThanTwoEvens = (item: Dummy) => {
-    return even.size > 2
+class IsEvenSelector extends Selector<Dummy, boolean> {
+  select(item: Dummy): boolean {
+    return item.value % 2 === 0
   }
-  const referenced = collection.filter(moreThanTwoEvens)
+}
 
-  let updates = 0
+test("Collection updates subsets based on selectors", () => {
+  const collection = new Collection<Object>()
 
-  autorun(() => {
-    ;[...referenced]
-    updates++
-  })
+  const even = new IsEvenSelector()
+  collection.register(even)
 
-  expect(updates).toBe(1)
-  expect(referenced.size).toBe(0)
-  collection.add(new Dummy(2))
-  expect(updates).toBe(1)
-  expect(referenced.size).toBe(0)
-  collection.add(new Dummy(4))
-  expect(updates).toBe(1)
-  expect(referenced.size).toBe(0)
-  collection.add(new Dummy(6))
-  expect(updates).toBe(2)
-  expect(referenced.size).toBe(3)
-})
+  const dummy = new Dummy(1)
+  collection.add(dummy)
 
-test("Collection's filter method returns existing result sets if predicate is already tracked'", () => {
-  const collection = new Collection<Dummy>()
+  // collections return the same set per selector and group pair
+  const a = collection.filter(even, true)
+  const b = collection.filter(even, true)
+  expect(a).toBe(b)
 
-  const isEven = (item: Dummy) => item.value % 2 === 0
-  const even = collection.filter(isEven)
+  // get the two sets
+  const evens = collection.filter(even, true)
+  const odds = collection.filter(even, false)
 
-  expect(even.size).toBe(0)
-  collection.add(new Dummy(2))
-  collection.add(new Dummy(4))
-  collection.add(new Dummy(6))
-})
+  // both should be observable sets
+  expect(evens).toBeInstanceOf(ObservableSet)
+  expect(odds).toBeInstanceOf(ObservableSet)
 
-test("Collection's filter throws if a filter is added with a missing dependency'", () => {
-  const collection = new Collection<Dummy>()
+  // the only dummy has value 1
+  expect(evens.size).toBe(0)
+  expect(odds.size).toBe(1)
 
-  const isEven = (item: Dummy) => item.value % 2 === 0
-  expect(() => {
-    collection.filter({
-      predicate: isEven,
-      dependencies: [new ObservableSet()],
-    })
-  }).toThrowError()
-})
+  dummy.set(2)
 
-test("Collection returns the same set for the same filter", () => {
-  const collection = new Collection<Dummy>()
+  // now it's value two, should be flipped
+  expect(evens.size).toBe(1)
+  expect(odds.size).toBe(0)
 
-  const isEven = (item: Dummy) => item.value % 2 === 0
-  expect(collection.filter(isEven)).toBe(collection.filter(isEven))
+  const dummy2 = new Dummy(3)
+  collection.add(dummy2)
 
-  const a = {
-    predicate: isEven,
-    dependencies: [],
-  }
-  const b = {
-    predicate: isEven,
-    dependencies: [],
-  }
-  expect(collection.filter(a)).toBe(collection.filter(b))
-})
+  // now there should be one in each
+  expect(evens.size).toBe(1)
+  expect(odds.size).toBe(1)
 
-test("Collection returns a new set if predicate is same but dependencies different", () => {
-  const collection = new Collection<Dummy>()
+  dummy2.set(4)
 
-  const bigger = collection.filter((item) => item.value > 5)
-  const smaller = collection.filter((item) => item.value < 5)
-
-  const isEven = (item: Dummy) => item.value % 2 === 0
-  expect(collection.filter(isEven)).toBe(collection.filter(isEven))
-
-  const a = {
-    predicate: isEven,
-    dependencies: [smaller],
-  }
-  const b = {
-    predicate: isEven,
-    dependencies: [bigger],
-  }
-  expect(collection.filter(a)).not.toBe(collection.filter(b))
+  // this one should move as well
+  expect(evens.size).toBe(2)
+  expect(odds.size).toBe(0)
 })

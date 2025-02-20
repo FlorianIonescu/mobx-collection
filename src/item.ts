@@ -6,12 +6,14 @@ import {
   makeAutoObservable,
   ObservableSet,
 } from "mobx"
+import Selector from "./selector/selector.js"
+import SelectionCache from "./types/selection-cache.js"
 
-type ItemPredicate<T> = (value: Item<T>) => boolean
+type Props<T, G> = Map<Selector<T, G>, IComputedValue<G>>
 
 export default class Item<T> {
   _item: T
-  props: Map<ObservableSet<T>, IComputedValue<boolean>> = new Map()
+  props: Props<T, unknown> = new Map()
 
   constructor(item: T) {
     this._item = item
@@ -28,20 +30,29 @@ export default class Item<T> {
     return this._item
   }
 
-  addFilterProp(set: ObservableSet<T>, predicate: ItemPredicate<T>) {
-    const compute = computed(() => predicate(this))
-    this.props.set(set, compute)
+  addProp<G>(selector: Selector<T, G>, cache: SelectionCache<T, G>) {
+    const compute = computed(() => selector.select(this._item))
+    this.props.set(selector, compute)
 
     autorun(() => {
-      this.update(set, compute.get())
+      this.update(cache, compute.get())
     })
   }
 
-  update(set: ObservableSet<T>, compute: boolean) {
-    if (compute) {
+  update<G>(cache: SelectionCache<T, G>, compute: G) {
+    // TODO only remove it from the set it's actually in
+    const sets = cache.b()
+    sets.forEach((set) => {
+      set.delete(this.item)
+    })
+
+    const set = cache.forward(compute)
+    if (set) {
       set.add(this.item)
     } else {
-      set.delete(this.item)
+      const _set = new ObservableSet<T>()
+      _set.add(this.item)
+      cache.set(compute, _set)
     }
   }
 }
