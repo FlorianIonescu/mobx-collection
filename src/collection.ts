@@ -45,7 +45,10 @@ export default class Collection<ItemType> {
     const cache = this.registrations.forward(selector)
     if (!cache) throw new Error("Tried to filter over an unregistered Selector")
 
-    const key = Selector.key(...keys)
+    const key =
+      keys.length === 1
+        ? Selector.key(...keys)
+        : Selector.key(...keys.map((k) => Selector.key(k)))
 
     const set = cache.forward(key)
     if (set) return set

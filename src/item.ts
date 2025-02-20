@@ -28,8 +28,7 @@ export default class Item<ItemType> {
 
   addProp(selector: Selector<ItemType>, cache: SelectionCache<ItemType>) {
     const compute = computed(() => {
-      const values = selector.select(this._item)
-      return Selector.key(...values)
+      return selector.select(this._item)
     })
 
     this.props.set(selector, compute)

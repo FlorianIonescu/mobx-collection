@@ -3,7 +3,7 @@ import FlexibleStore from "$src/utils/flexible-store.js"
 const KeyStore: FlexibleStore<any, symbol> = new FlexibleStore()
 
 export default abstract class Selector<ItemType> {
-  abstract select(item: ItemType): any[]
+  abstract select(item: ItemType): symbol
 
   static key(...values: any[]) {
     const hit = KeyStore.get(...values)

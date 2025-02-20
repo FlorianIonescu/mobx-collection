@@ -20,8 +20,8 @@ class Dummy {
 }
 
 class IsEvenSelector extends Selector<Dummy> {
-  select(item: Dummy): boolean[] {
-    return [item.value % 2 === 0]
+  select(item: Dummy) {
+    return Selector.key(item.value % 2 === 0)
   }
 }
 
