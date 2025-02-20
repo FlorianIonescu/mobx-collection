@@ -18,4 +18,7 @@ test("FlexibleStore works", () => {
   store.delete("a", "b", "c")
   expect(store.nodes.size).toBe(0)
   expect(store.get("a", "b", "c")).toBeUndefined()
+
+  // but previously set values are untouched
+  expect(store.get("a")).toBe(12)
 })

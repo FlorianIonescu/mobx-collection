@@ -9,29 +9,29 @@ import {
 import Selector from "./selector/selector.js"
 import SelectionCache from "./types/selection-cache.js"
 
-type Props<T, G> = Map<Selector<T, G>, IComputedValue<G>>
+type Props<ItemType> = Map<Selector<ItemType>, IComputedValue<symbol>>
 
-export default class Item<T> {
-  _item: T
-  props: Props<T, unknown> = new Map()
+export default class Item<ItemType> {
+  _item: ItemType
+  props: Props<ItemType> = new Map()
 
-  constructor(item: T) {
+  constructor(item: ItemType) {
     this._item = item
     makeAutoObservable(this, {
       update: action,
     })
   }
 
-  set item(item) {
-    this._item = item
-  }
-
   get item() {
     return this._item
   }
 
-  addProp<G>(selector: Selector<T, G>, cache: SelectionCache<T, G>) {
-    const compute = computed(() => selector.select(this._item))
+  addProp(selector: Selector<ItemType>, cache: SelectionCache<ItemType>) {
+    const compute = computed(() => {
+      const values = selector.select(this._item)
+      return Selector.key(...values)
+    })
+
     this.props.set(selector, compute)
 
     autorun(() => {
@@ -39,7 +39,7 @@ export default class Item<T> {
     })
   }
 
-  update<G>(cache: SelectionCache<T, G>, compute: G) {
+  update(cache: SelectionCache<ItemType>, compute: symbol) {
     // TODO only remove it from the set it's actually in
     const sets = cache.b()
     sets.forEach((set) => {
@@ -50,7 +50,7 @@ export default class Item<T> {
     if (set) {
       set.add(this.item)
     } else {
-      const _set = new ObservableSet<T>()
+      const _set = new ObservableSet<ItemType>()
       _set.add(this.item)
       cache.set(compute, _set)
     }

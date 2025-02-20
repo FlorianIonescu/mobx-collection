@@ -3,23 +3,25 @@ import BidirectionalMap from "./utils/bidirectional-map.js"
 import Selector from "./selector/selector.js"
 import { ObservableMap, ObservableSet } from "mobx"
 import SelectionCache from "./types/selection-cache.js"
+import FlexibleStore from "./utils/flexible-store.js"
 
-type CollectionRegistrations<T, G> = BidirectionalMap<
-  Selector<T, G>,
-  SelectionCache<T, G>
+type CollectionRegistrations<ItemType> = BidirectionalMap<
+  Selector<ItemType>,
+  SelectionCache<ItemType>
 >
 
-export default class Collection<T> {
-  items: ObservableMap<T, Item<T>> = new ObservableMap()
-  registrations: CollectionRegistrations<T, unknown> = new BidirectionalMap()
+export default class Collection<ItemType> {
+  items: ObservableMap<ItemType, Item<ItemType>> = new ObservableMap()
+  registrations: CollectionRegistrations<ItemType> = new BidirectionalMap()
+  compositeGroups = new FlexibleStore<any, symbol>()
 
-  register<G>(selector: Selector<T, G>) {
+  register(selector: Selector<ItemType>) {
     const existing = this.registrations.forward(selector)
     if (existing) {
       throw new Error("Tried to register an already registered Selector")
     }
 
-    const cache = new BidirectionalMap<G, ObservableSet<T>>()
+    const cache = new BidirectionalMap<symbol, ObservableSet<ItemType>>()
     this.registrations.set(selector, cache)
 
     this.items.forEach((item) => {
@@ -27,7 +29,7 @@ export default class Collection<T> {
     })
   }
 
-  add(item: T) {
+  add(item: ItemType) {
     const _item = new Item(item)
     this.items.set(_item.item, _item)
 
@@ -36,15 +38,20 @@ export default class Collection<T> {
     })
   }
 
-  filter<G>(selector: Selector<T, G>, group: G): ObservableSet<T> {
+  filter(
+    selector: Selector<ItemType>,
+    ...keys: any[]
+  ): ObservableSet<ItemType> {
     const cache = this.registrations.forward(selector)
     if (!cache) throw new Error("Tried to filter over an unregistered Selector")
 
-    const set = cache.forward(group)
+    const key = Selector.key(...keys)
+
+    const set = cache.forward(key)
     if (set) return set
 
     const _set = new ObservableSet()
-    cache.set(group, _set)
+    cache.set(key, _set)
 
     return _set
   }

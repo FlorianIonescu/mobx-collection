@@ -1,8 +1,8 @@
-export default class FlexibleStore {
-  leafs: Map<any, any> = new Map()
-  nodes: Map<any, FlexibleStore> = new Map()
+export default class FlexibleStore<K, T> {
+  leafs: Map<K, T> = new Map()
+  nodes: Map<K, FlexibleStore<K, T>> = new Map()
 
-  get(...keys: any[]) {
+  get(...keys: K[]): T {
     if (!keys.length) {
       return undefined
     } else if (keys.length === 1) {
@@ -14,7 +14,7 @@ export default class FlexibleStore {
     }
   }
 
-  set(value: any, ...keys: any[]) {
+  set(value: T, ...keys: K[]) {
     if (!keys.length) {
       throw new Error("FlexibleStore.set needs at least one key")
     } else if (keys.length === 1) {
@@ -30,7 +30,7 @@ export default class FlexibleStore {
     }
   }
 
-  delete(...keys: any[]) {
+  delete(...keys: K[]) {
     if (!keys.length) {
       throw new Error("FlexibleStore.remove needs at least one key")
     } else if (keys.length === 1) {

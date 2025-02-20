@@ -1,21 +1,17 @@
 import Selector from "./selector.js"
 
-type AndSelectorGroup<A, B> = unknown
-
-export default class AndSelector<
-  T extends Object,
-  A extends unknown,
-  B extends unknown
-> extends Selector<T, AndSelectorGroup<A, B>> {
-  a: Selector<T, A>
-  b: Selector<T, B>
-  constructor(a: Selector<T, A>, b: Selector<T, B>) {
+export default class AndSelector<T extends Object> extends Selector<T> {
+  a: Selector<T>
+  b: Selector<T>
+  constructor(a: Selector<T>, b: Selector<T>) {
     super()
     this.a = a
     this.b = b
   }
 
   select(item: T) {
-    //
+    const a = this.a.select(item)
+    const b = this.b.select(item)
+    return [Selector.key(a), Selector.key(b)]
   }
 }

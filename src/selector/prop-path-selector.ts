@@ -2,9 +2,8 @@ import Selector from "./selector.js"
 import getByPath from "$src/utils/get-by-path.js"
 
 export default class PropPathSelector<
-  ItemType extends Object,
-  Groups extends any
-> extends Selector<ItemType, Groups> {
+  ItemType extends Object
+> extends Selector<ItemType> {
   path: string
 
   constructor(path: string) {
@@ -13,7 +12,7 @@ export default class PropPathSelector<
     this.path = path
   }
 
-  select(item: ItemType): Groups {
-    return getByPath(item, this.path)
+  select(item: ItemType) {
+    return [getByPath(item, this.path)]
   }
 }

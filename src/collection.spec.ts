@@ -16,9 +16,9 @@ class Dummy {
   }
 }
 
-class IsEvenSelector extends Selector<Dummy, boolean> {
-  select(item: Dummy): boolean {
-    return item.value % 2 === 0
+class IsEvenSelector extends Selector<Dummy> {
+  select(item: Dummy): boolean[] {
+    return [item.value % 2 === 0]
   }
 }
 
