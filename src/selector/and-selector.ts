@@ -9,6 +9,10 @@ export default class AndSelector<T extends Object> extends Selector<T> {
     this.b = b
   }
 
+  key() {
+    return Selector.key(this.a.key(), this.b.key())
+  }
+
   select(item: T) {
     const a = this.a.select(item)
     const b = this.b.select(item)

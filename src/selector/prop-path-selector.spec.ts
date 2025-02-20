@@ -25,8 +25,6 @@ test("PropPathSelector works", () => {
 
   const value = new PropPathSelector("value")
   const even = new PropPathSelector("even")
-  collection.register(value)
-  collection.register(even)
 
   const first = new Dummy(1)
   collection.add(first)

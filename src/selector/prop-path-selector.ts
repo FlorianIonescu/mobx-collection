@@ -12,6 +12,10 @@ export default class PropPathSelector<
     this.path = path
   }
 
+  key(): symbol {
+    return Selector.key(this.path)
+  }
+
   select(item: ItemType) {
     return Selector.key(getByPath(item, this.path))
   }

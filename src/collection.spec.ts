@@ -26,7 +26,6 @@ test("Collection updates subsets based on selectors", () => {
   const collection = new Collection<Object>()
 
   const even = new IsEvenSelector()
-  collection.register(even)
 
   const dummy = new Dummy(1)
   collection.add(dummy)
@@ -35,6 +34,11 @@ test("Collection updates subsets based on selectors", () => {
   const a = collection.filter(even, true)
   const b = collection.filter(even, true)
   expect(a).toBe(b)
+
+  // even for new instances
+  const a2 = collection.filter(new IsEvenSelector(), true)
+  const b2 = collection.filter(new IsEvenSelector(), true)
+  expect(a2).toBe(b2)
 
   // get the two sets
   const evens = collection.filter(even, true)

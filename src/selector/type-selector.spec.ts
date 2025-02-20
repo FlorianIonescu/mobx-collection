@@ -9,7 +9,6 @@ class C {}
 test("TypeSelector works", () => {
   const collection = new Collection<Object>()
   const selector = new TypeSelector()
-  collection.register(selector)
 
   collection.add(new A())
   collection.add(new A())
