@@ -7,14 +7,7 @@ export default abstract class Selector<ItemType> {
   abstract select(item: ItemType): symbol
 
   key(): symbol {
-    return defaultKey
-  }
-
-  hash(): symbol {
-    const key = this.key()
-    if (key === defaultKey) return Selector.key(this.constructor)
-
-    return Selector.key(this.constructor, key)
+    return Selector.key(this.constructor)
   }
 
   static key(...values: any[]) {

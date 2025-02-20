@@ -17,7 +17,7 @@ export default class Collection<ItemType> {
   selectors: Map<symbol, Selector<ItemType>> = new Map()
 
   register(selector: Selector<ItemType>): Selector<ItemType> {
-    const found = this.selectors.get(selector.hash())
+    const found = this.selectors.get(selector.key())
     if (found) return found
 
     // haven't seen any selector like this before
@@ -26,7 +26,7 @@ export default class Collection<ItemType> {
     const cache = new BidirectionalMap<symbol, ObservableSet<ItemType>>()
 
     // register selector and its cache by key
-    this.selectors.set(selector.hash(), selector)
+    this.selectors.set(selector.key(), selector)
     this.registrations.set(selector, cache)
 
     // make sure that all existing items start tracking this

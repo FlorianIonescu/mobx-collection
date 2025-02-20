@@ -10,13 +10,13 @@ export default class AndSelector<T extends Object> extends Selector<T> {
   }
 
   key() {
-    return Selector.key(this.a.key(), this.b.key())
+    return Selector.key(AndSelector, this.a.key(), this.b.key())
   }
 
   select(item: T) {
     const a = this.a.select(item)
     const b = this.b.select(item)
-    // console.log(a, b)
+
     return Selector.key(a, b)
   }
 }
