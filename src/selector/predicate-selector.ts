@@ -14,9 +14,7 @@ export default class PredicateSelector<T extends Object> extends Selector<T> {
     return Selector.key(PredicateSelector, this.predicate)
   }
 
-  select(item: T) {
-    return this.predicate(item)
+  select(item: T): symbol {
+    return Selector.key(this.predicate(item))
   }
 }
-
-// TODO make specs for this
