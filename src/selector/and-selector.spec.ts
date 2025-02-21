@@ -15,27 +15,21 @@ class C {
 }
 
 test("AndSelector works", () => {
-  console.time("setup")
   const collection = new Collection<A | B | C>()
   const selector = new AndSelector(
     new TypeSelector(),
     new PropPathSelector("value")
   )
-  console.timeEnd("setup")
 
-  console.time("adding")
   collection.add(new A(1))
   collection.add(new A(2))
   collection.add(new A(2))
   collection.add(new B(1))
   collection.add(new B(1))
   collection.add(new B(2))
-  console.timeEnd("adding")
 
-  console.time("filtering")
   expect(collection.filter(selector, A, 1).size).toBe(1)
   expect(collection.filter(selector, A, 2).size).toBe(2)
   expect(collection.filter(selector, B, 1).size).toBe(2)
   expect(collection.filter(selector, B, 2).size).toBe(1)
-  console.timeEnd("filtering")
 })

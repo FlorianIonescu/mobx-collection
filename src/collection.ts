@@ -1,7 +1,7 @@
 import Item from "./item.js"
 import BidirectionalMap from "./utils/bidirectional-map.js"
 import Selector from "./selector/selector.js"
-import { ObservableMap, ObservableSet } from "mobx"
+import { action, makeObservable, ObservableSet } from "mobx"
 import SelectionCache from "./types/selection-cache.js"
 import FlexibleStore from "./utils/flexible-store.js"
 
@@ -11,30 +11,16 @@ type CollectionRegistrations<ItemType> = BidirectionalMap<
 >
 
 export default class Collection<ItemType> {
-  items: ObservableMap<ItemType, Item<ItemType>> = new ObservableMap()
+  items: Map<ItemType, Item<ItemType>> = new Map()
   registrations: CollectionRegistrations<ItemType> = new BidirectionalMap()
   compositeGroups = new FlexibleStore<any, symbol>()
   selectors: Map<symbol, Selector<ItemType>> = new Map()
 
-  register(selector: Selector<ItemType>): Selector<ItemType> {
-    const found = this.selectors.get(selector.key())
-    if (found) return found
-
-    // haven't seen any selector like this before
-
-    // create the new cache
-    const cache = new BidirectionalMap<symbol, ObservableSet<ItemType>>()
-
-    // register selector and its cache by key
-    this.selectors.set(selector.key(), selector)
-    this.registrations.set(selector, cache)
-
-    // make sure that all existing items start tracking this
-    this.items.forEach((item) => {
-      item.addProp(selector, cache)
+  constructor() {
+    makeObservable(this, {
+      add: action,
+      filter: action,
     })
-
-    return selector
   }
 
   add(item: ItemType) {
@@ -68,5 +54,26 @@ export default class Collection<ItemType> {
     cache.set(key, _set)
 
     return _set
+  }
+
+  private register(selector: Selector<ItemType>): Selector<ItemType> {
+    const found = this.selectors.get(selector.key())
+    if (found) return found
+
+    // haven't seen any selector like this before
+
+    // create the new cache
+    const cache = new BidirectionalMap<symbol, ObservableSet<ItemType>>()
+
+    // register selector and its cache by key
+    this.selectors.set(selector.key(), selector)
+    this.registrations.set(selector, cache)
+
+    // make sure that all existing items start tracking this
+    this.items.forEach((item) => {
+      item.addProp(selector, cache)
+    })
+
+    return selector
   }
 }
