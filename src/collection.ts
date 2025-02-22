@@ -32,6 +32,18 @@ export default class Collection<ItemType> {
     })
   }
 
+  remove(item: ItemType) {
+    const _item = this.items.get(item)
+    if (!_item) return
+
+    _item.delete()
+    this.items.delete(item)
+  }
+
+  get size() {
+    return this.items.size
+  }
+
   filter(
     selector: Selector<ItemType>,
     ...keys: any[]

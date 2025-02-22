@@ -1,5 +1,5 @@
-import Selector from "./selector.js"
 import getByPath from "$src/utils/get-by-path.js"
+import Selector from "./selector.js"
 
 export default class PropPathSelector<
   ItemType extends Object
@@ -17,6 +17,11 @@ export default class PropPathSelector<
   }
 
   select(item: ItemType) {
-    return Selector.key(getByPath(item, this.path))
+    let result: any
+    try {
+      result = getByPath(item, this.path)
+    } catch {}
+
+    return Selector.key(result)
   }
 }
