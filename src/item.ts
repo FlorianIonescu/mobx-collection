@@ -10,6 +10,8 @@ import {
 } from "mobx"
 import Selector from "./selector/selector.js"
 import SelectionCache from "./types/selection-cache.js"
+import Scope from "@florianionescu/scope"
+import Collection from "./collection.js"
 
 type Props<ItemType> = Map<Selector<ItemType>, IComputedValue<symbol>>
 
@@ -37,9 +39,15 @@ export default class Item<ItemType> {
     return this._item
   }
 
-  addProp(selector: Selector<ItemType>, cache: SelectionCache<ItemType>) {
+  addProp(
+    collection: Collection<ItemType>,
+    selector: Selector<ItemType>,
+    cache: SelectionCache<ItemType>
+  ) {
     const compute = computed(() => {
-      return selector.select(this._item)
+      return Scope.do("collection", collection, () => {
+        return selector.select(this._item)
+      })
     })
 
     this.props.set(selector, compute)

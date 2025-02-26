@@ -1,22 +1,17 @@
 import Selector from "./selector.js"
 
 export default class AndSelector<T extends Object> extends Selector<T> {
-  a: Selector<T>
-  b: Selector<T>
-  constructor(a: Selector<T>, b: Selector<T>) {
+  selectors: Selector<T>[]
+  constructor(...selectors: Selector<T>[]) {
     super()
-    this.a = a
-    this.b = b
+    this.selectors = selectors
   }
 
   key() {
-    return Selector.key(AndSelector, this.a.key(), this.b.key())
+    return Selector.key(AndSelector, ...this.selectors.map((s) => s.key()))
   }
 
   select(item: T) {
-    const a = this.a.select(item)
-    const b = this.b.select(item)
-
-    return Selector.key(a, b)
+    return Selector.key(...this.selectors.map((s) => s.select(item)))
   }
 }

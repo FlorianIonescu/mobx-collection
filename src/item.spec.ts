@@ -26,6 +26,7 @@ class IsEvenSelector extends Selector<Dummy> {
 }
 
 test("Item reacts to _item changes and updates its props", () => {
+  const collection = new Collection<Dummy>()
   const dummy = new Dummy(1)
   const item = new Item(dummy)
 
@@ -35,7 +36,7 @@ test("Item reacts to _item changes and updates its props", () => {
     symbol,
     ObservableSet<Dummy>
   >()
-  item.addProp(selector, cache)
+  item.addProp(collection, selector, cache)
 
   const a = cache.forward(Selector.key(true))
   expect(a).not.toBeDefined()
