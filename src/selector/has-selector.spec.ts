@@ -57,6 +57,7 @@ test("HasSelector works with composite keys as well", () => {
       new TypeSelector(),
       new HasSelector(
         new AndSelector(new PropPathSelector("parent"), new TypeSelector()),
+        (i) => i,
         Dummy2
       )
     ),
