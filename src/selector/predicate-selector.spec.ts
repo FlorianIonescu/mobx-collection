@@ -6,7 +6,7 @@ class Dummy {
   constructor(public value: number) {}
 }
 
-test("TypeSelector works", () => {
+test("PredicateSelector works", () => {
   const collection = new Collection<Object>()
   const over = new PredicateSelector((item: Dummy) => item.value > 3)
   const even = new PredicateSelector((item: Dummy) => item.value % 2 === 0)

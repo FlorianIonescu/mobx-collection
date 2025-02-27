@@ -1,34 +1,30 @@
-import Collection from "$src/collection.js"
-import Scope from "@florianionescu/scope"
 import Selector from "./selector.js"
-
-const identity = (item: any) => item
+import Explanation from "$src/types/explanation.js"
+import { ObservableSet } from "mobx"
 
 export default class HasSelector<T extends Object> extends Selector<T> {
-  selector: Selector<T>
-  group: (item: T) => any
-  keys: any[]
+  makeSet: (item: T) => ObservableSet<T>
 
-  constructor(selector: Selector<T>, group?: (item: T) => any, ...keys: any[]) {
+  constructor(makeSet: (item: T) => ObservableSet<T>) {
     super()
-    this.selector = selector
-    this.group = group || identity
-    this.keys = keys
+    this.makeSet = makeSet
   }
 
   key() {
-    return Selector.key(
-      HasSelector,
-      this.selector.key(),
-      this.group,
-      ...this.keys
-    )
+    return Selector.key(HasSelector, this.makeSet)
   }
 
   select(item: T): symbol {
-    const collection = Scope.get("collection") as Collection<T>
-    const set = collection.filter(this.selector, this.group(item), ...this.keys)
-    const group = !!set.size
+    const set = this.makeSet(item)
+    const group = set.size > 0
     return Selector.key(group)
+  }
+
+  explain(item: any, value: boolean): Explanation[] {
+    return [
+      `${value ? "have" : "have no"} items returned from '${
+        this.makeSet.name
+      }'`,
+    ]
   }
 }

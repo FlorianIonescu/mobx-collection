@@ -7,12 +7,14 @@ import TypeSelector from "./type-selector.js"
 import AndSelector from "./and-selector.js"
 
 class Dummy {
+  id: string
   parent?: Dummy
 
   constructor(parent?: Dummy) {
     makeAutoObservable(this)
 
     if (parent) this.parent = parent
+    this.id = "example-id"
   }
 }
 
@@ -29,8 +31,10 @@ class Dummy2 {
 test("HasSelector works", () => {
   const collection = new Collection<Object>()
 
-  const parents = new PropPathSelector("parent")
-  const hasChildren = new HasSelector(parents)
+  const getChildren = (item: any) => {
+    return collection.filter(new PropPathSelector("parent"), item)
+  }
+  const hasChildren = new HasSelector(getChildren)
 
   const a = new Dummy()
   collection.add(a)
@@ -52,15 +56,16 @@ test("HasSelector works with composite keys as well", () => {
   collection.add(new Dummy(a))
   collection.add(new Dummy(a))
 
+  const getDummy2Children = (item: any) => {
+    return collection.filter(
+      new AndSelector(new TypeSelector(), new PropPathSelector("parent")),
+      Dummy2,
+      item
+    )
+  }
+
   const players = collection.filter(
-    new AndSelector(
-      new TypeSelector(),
-      new HasSelector(
-        new AndSelector(new PropPathSelector("parent"), new TypeSelector()),
-        (i) => i,
-        Dummy2
-      )
-    ),
+    new AndSelector(new TypeSelector(), new HasSelector(getDummy2Children)),
     Dummy,
     true
   )

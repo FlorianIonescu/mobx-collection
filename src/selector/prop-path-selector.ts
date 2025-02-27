@@ -1,3 +1,4 @@
+import Explanation from "$src/types/explanation.js"
 import getByPath from "$src/utils/get-by-path.js"
 import Selector from "./selector.js"
 
@@ -23,5 +24,9 @@ export default class PropPathSelector<
     } catch {}
 
     return Selector.key(result)
+  }
+
+  explain(value: any): Explanation[] {
+    return [`are having the value '${value}' set in '${this.path}'`]
   }
 }
