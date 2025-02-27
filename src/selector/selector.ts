@@ -29,7 +29,9 @@ export default abstract class Selector<ItemType> {
 
   abstract select(item: ItemType): symbol
 
-  abstract explain(...values: any[]): Explanation[]
+  explain(...values: any[]): Explanation[] {
+    return []
+  }
 
   info(...values: any[]): void {
     const explanation = this.explain(...values)

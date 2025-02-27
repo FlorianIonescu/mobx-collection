@@ -45,6 +45,11 @@ export default class Collection<ItemType> {
     return this.items.size
   }
 
+  any(selector: Selector<ItemType>, ...keys: any[]): ItemType | undefined {
+    const set = this.filter(selector, ...keys)
+    return set.values().next().value || undefined
+  }
+
   filter(
     selector: Selector<ItemType>,
     ...keys: any[]
