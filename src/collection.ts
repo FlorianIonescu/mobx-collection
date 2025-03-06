@@ -47,7 +47,13 @@ export default class Collection<ItemType> {
 
   any(selector: Selector<ItemType>, ...keys: any[]): ItemType | undefined {
     const set = this.filter(selector, ...keys)
-    return set.values().next().value || undefined
+    const next = set.values().next()
+    return next.value || undefined
+  }
+
+  all(selector: Selector<ItemType>, ...keys: any[]): ItemType[] {
+    const set = this.filter(selector, ...keys)
+    return [...set.values()]
   }
 
   filter(
