@@ -22,7 +22,7 @@ class IsEvenSelector extends Selector<Dummy> {
   }
 }
 
-test.only("Collection updates subsets based on selectors", () => {
+test("Collection updates subsets based on selectors", () => {
   const collection = new Collection<Object>()
   expect(collection.size).toBe(0)
 
@@ -79,4 +79,20 @@ test.only("Collection updates subsets based on selectors", () => {
   // removing an item is also possible
   expect(collection.size).toBe(1)
   expect(evens.size).toBe(1)
+})
+
+test("Collection correctly tracks last added item", () => {
+  const collection = new Collection<Object>()
+  expect(collection.last).toBeNull()
+
+  const a = new Dummy(1)
+  collection.add(a)
+  expect(collection.last).toBe(a)
+
+  const b = new Dummy(1)
+  collection.add(b)
+  expect(collection.last).toBe(b)
+
+  collection.remove(b)
+  expect(collection.last).toBeNull()
 })

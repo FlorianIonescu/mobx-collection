@@ -17,6 +17,8 @@ export default class Collection<ItemType> {
   compositeGroups = new FlexibleStore<any, symbol>()
   selectors: Map<symbol, Selector<ItemType>> = new Map()
 
+  last: ItemType | null = null
+
   constructor() {
     makeObservable(this, {
       add: action,
@@ -31,6 +33,8 @@ export default class Collection<ItemType> {
     this.registrations.entries().forEach(([selector, cache]) => {
       _item.addProp(this, selector, cache)
     })
+
+    this.last = item
   }
 
   remove(item: ItemType) {
@@ -39,6 +43,8 @@ export default class Collection<ItemType> {
 
     _item.delete()
     this.items.delete(item)
+
+    if (this.last === item) this.last = null
   }
 
   get size() {
